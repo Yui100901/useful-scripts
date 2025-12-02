@@ -1,8 +1,9 @@
 #!/bin/bash
 
-VIDEO="${1:-test.mp4}"
+COMMAND="$1"
+VIDEO="${2:-test.mp4}"
 STREAM_KEY="${VIDEO%.*}"
-RTMP_URL="${2:-rtmp://127.0.0.1/live/$STREAM_KEY}"
+RTMP_URL="${3:-rtmp://127.0.0.1/live/$STREAM_KEY}"
 PID_FILE="/tmp/ffmpeg_${STREAM_KEY}.pid"
 
 start_stream() {
@@ -28,7 +29,7 @@ stop_stream() {
   fi
 }
 
-case "$3" in
+case "$COMMAND" in
   start)
     start_stream
     ;;
@@ -36,7 +37,11 @@ case "$3" in
     stop_stream
     ;;
   *)
-    echo "用法: $0 <video_file> [rtmp_url] {start|stop}"
-    echo "示例: $0 test.mp4 rtmp://127.0.0.1/live/test start"
+    echo "用法:"
+    echo "  $0 start [video_file] [rtmp_url]"
+    echo "  $0 stop [video_file]"
+    echo "示例:"
+    echo "  $0 start test.mp4 rtmp://127.0.0.1/live/test"
+    echo "  $0 stop test.mp4"
     ;;
 esac
