@@ -5,9 +5,10 @@ shift
 
 MODE=""
 SOURCE=""
-RTMP_URL=""
+STREAM_KEY=""
+RTMP_BASE="rtmp://127.0.0.1/live"
 
-# 解析选项
+# 解析参数
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -f|--file)
@@ -20,8 +21,8 @@ while [[ $# -gt 0 ]]; do
       SOURCE="$2"
       shift 2
       ;;
-    -u|--url)
-      RTMP_URL="$2"
+    -k|--key)
+      STREAM_KEY="$2"
       shift 2
       ;;
     *)
@@ -31,7 +32,24 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-PID_FILE="/tmp/stream_$(echo "$SOURCE" | md5sum | cut -d' ' -f1).pid"
+# 校验输入
+if [ -z "$SOURCE" ]; then
+  echo "❌ 未指定输入源，请使用 -f 或 -s"
+  exit 1
+fi
+
+# 自动生成 stream key
+if [ -z "$STREAM_KEY" ]; then
+  if [ "$MODE" = "file" ]; then
+    STREAM_KEY=$(basename "$SOURCE")
+    STREAM_KEY="${STREAM_KEY%.*}"  # 去掉扩展名
+  else
+    STREAM_KEY=$(date +%s | md5sum | cut -c1-8)
+  fi
+fi
+
+RTMP_URL="$RTMP_BASE/$STREAM_KEY"
+PID_FILE="/tmp/stream_$STREAM_KEY.pid"
 
 start_stream() {
   if [ "$MODE" = "file" ]; then
@@ -47,15 +65,11 @@ start_stream() {
     exit 1
   fi
 
-  if [ -z "$RTMP_URL" ]; then
-    echo "❌ 未指定推送地址，请使用 -u"
-    exit 1
-  fi
-
   echo "🎬 启动推流: $SOURCE → $RTMP_URL"
   nohup bash -c "ffmpeg $INPUT_OPTS -c copy -f flv \"$RTMP_URL\"" > /dev/null 2>&1 &
   echo $! > "$PID_FILE"
   echo "✅ FFmpeg 已在后台运行，PID: $(cat $PID_FILE)"
+  echo "📺 推流地址: $RTMP_URL"
 }
 
 stop_stream() {
@@ -77,8 +91,8 @@ case "$COMMAND" in
     ;;
   *)
     echo "用法:"
-    echo "  $0 start -f <video_file> -u <rtmp_url>"
-    echo "  $0 start -s <input_url> -u <rtmp_url>"
+    echo "  $0 start -f <video_file> [-k <stream_key>]"
+    echo "  $0 start -s <input_url> [-k <stream_key>]"
     echo "  $0 stop -f <video_file>"
     echo "  $0 stop -s <input_url>"
     ;;
